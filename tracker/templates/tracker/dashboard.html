@@ -1,0 +1,347 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PlacementPath | {{ profile.name }}</title>
+    <link rel="stylesheet" href="{% static 'tracker/style.css' %}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+<div class="layout">
+    <aside class="sidebar">
+        <h2>🚀 PlacementPath</h2>
+        <p class="muted">PERSONAL SDE TRACKER</p>
+        <nav>
+            <a href="#overview">▦ Overview</a>
+            <a href="#about">👤 About Me</a>
+            <a href="#analytics">📊 Weekly Graph</a>
+            <a href="#tasks">⌘ DSA & Tasks</a>
+            <a href="#questions">💻 Questions</a>
+            <a href="#subjects">📚 Core Subjects</a>
+            <a href="#projects">📁 Projects</a>
+            <a href="#study">📅 Study Log</a>
+            <a href="#applications">🎯 Applications</a>
+        </nav>
+        <div class="profile">
+            <div class="avatar">{{ profile.name|slice:":1" }}</div>
+            <div><b>{{ profile.name }}</b><br><small>5th Sem • CSE & AI</small></div>
+        </div>
+    </aside>
+
+    <main class="main">
+        <header class="topbar">
+            <div>
+                <p class="muted">MONITOR YOUR PROGRESS</p>
+                <h1>My Placement Dashboard</h1>
+                <p class="muted">{{ profile.headline }}</p>
+            </div>
+            <span class="pill">{{ profile.target_role }}</span>
+        </header>
+
+        <section id="overview">
+            <div class="hero card">
+                <div>
+                    <p class="muted">YOUR PLACEMENT READINESS</p>
+                    <h2>{{ readiness }}%</h2>
+                    <p>Keep learning. Keep improving.</p>
+                    <div class="progress"><span style="width:{{ readiness }}%"></span></div>
+                </div>
+                <div class="hero-icon">🎯</div>
+            </div>
+
+            <div class="stats">
+                <div class="card stat">
+                    <span>DSA Questions</span>
+                    <h2>{{ solved_questions }}/{{ total_questions }}</h2>
+                    <small>Questions solved</small>
+                </div>
+                <div class="card stat">
+                    <span>Tasks Completed</span>
+                    <h2>{{ completed_tasks }}/{{ total_tasks }}</h2>
+                    <small>Roadmap progress</small>
+                </div>
+                <div class="card stat">
+                    <span>Projects</span>
+                    <h2>{{ total_projects }}</h2>
+                    <small>Total projects</small>
+                </div>
+                <div class="card stat">
+                    <span>Study Hours</span>
+                    <h2>{{ total_hours|floatformat:1 }}</h2>
+                    <small>Hours logged</small>
+                </div>
+            </div>
+        </section>
+
+        <section id="about" class="card">
+            <div class="about-top">
+                <div>
+                    <p class="muted">DEVELOPER PROFILE</p>
+                    <h2>👤 {{ profile.name }}</h2>
+                    <p class="bio-text">{{ profile.bio }}</p>
+                    <div class="skills-wrap">
+                        {% for skill in skills_list %}
+                        <span class="pill">{{ skill }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="about-actions">
+                    {% if profile.github_url %}
+                    <a href="{{ profile.github_url }}" target="_blank" rel="noopener" class="btn-link">GitHub Profile ↗</a>
+                    {% endif %}
+                    <button type="button" onclick="toggleEditProfile()" class="btn-secondary">Edit Profile</button>
+                </div>
+            </div>
+
+            <form id="edit-profile-form" action="{% url 'update_profile' %}" method="POST" class="edit-box" style="display:none;">
+                {% csrf_token %}
+                <div class="form-row">
+                    <input name="name" value="{{ profile.name }}" placeholder="Your Name" required>
+                    <input name="headline" value="{{ profile.headline }}" placeholder="Headline (e.g. B.Tech 5th Sem CSE & AI)" required>
+                    <input name="target_role" value="{{ profile.target_role }}" placeholder="Target Role">
+                </div>
+                <div class="form-row">
+                    <input name="skills" value="{{ profile.skills }}" placeholder="Skills (comma separated)">
+                    <input name="github_url" type="url" value="{{ profile.github_url }}" placeholder="GitHub URL">
+                </div>
+                <div class="form-row">
+                    <textarea name="bio" rows="3" placeholder="Write about yourself, your projects, and career goals...">{{ profile.bio }}</textarea>
+                </div>
+                <button type="submit">Save Profile</button>
+            </form>
+        </section>
+
+        <section id="analytics" class="card">
+            <h2>📊 Last 7 Days Consistency</h2>
+            <p class="muted">Daily study hours and DSA problems solved over the past week.</p>
+            <div class="chart-box">
+                <canvas id="weeklyChart"></canvas>
+            </div>
+        </section>
+
+        <section id="subjects" class="card">
+            <h2>📚 Subject-wise Progress</h2>
+            {% for subject, progress in category_progress.items %}
+            <div class="subject-row">
+                <div class="subject-head">
+                    <b>{{ subject }}</b><span>{{ progress }}%</span>
+                </div>
+                <div class="progress">
+                    <span style="width:{{ progress }}%"></span>
+                </div>
+            </div>
+            {% endfor %}
+        </section>
+
+        <section id="tasks" class="card">
+            <h2>📌 My Roadmap Tasks</h2>
+            <form action="{% url 'add_task' %}" method="POST" class="form-row">
+                {% csrf_token %}
+                <input name="title" placeholder="Add a new learning topic..." required>
+                <select name="category">
+                    <option value="DSA">DSA</option>
+                    <option value="CORE">Core CS</option>
+                    <option value="AI">AI / ML</option>
+                    <option value="APTITUDE">Aptitude</option>
+                    <option value="DEVELOPMENT">Development</option>
+                    <option value="INTERVIEW">Interview</option>
+                </select>
+                <button>Add</button>
+            </form>
+            <div class="task-list">
+                {% for task in tasks %}
+                <div class="task">
+                    <form action="{% url 'toggle_task' task.id %}" method="POST">
+                        {% csrf_token %}
+                        <button class="check {% if task.completed %}checked{% endif %}" title="Toggle task">
+                            {% if task.completed %}✓{% else %}○{% endif %}
+                        </button>
+                    </form>
+                    <span class="{% if task.completed %}done{% endif %}">{{ task.title }}</span>
+                    <small>{{ task.get_category_display }}</small>
+                    <form action="{% url 'delete_task' task.id %}" method="POST">
+                        {% csrf_token %}
+                        <button class="delete">×</button>
+                    </form>
+                </div>
+                {% empty %}
+                <p class="muted">No tasks yet. Add your first topic above.</p>
+                {% endfor %}
+            </div>
+        </section>
+
+        <section id="questions" class="card">
+            <h2>💻 DSA Question Tracker</h2>
+            <form action="{% url 'add_question' %}" method="POST" class="form-row">
+                {% csrf_token %}
+                <input name="title" placeholder="Question name" required>
+                <select name="difficulty">
+                    <option>Easy</option><option>Medium</option><option>Hard</option>
+                </select>
+                <select name="platform">
+                    <option>LeetCode</option><option>GeeksforGeeks</option><option>HackerRank</option>
+                </select>
+                <label class="inline"><input type="checkbox" name="solved"> Solved</label>
+                <button>Add</button>
+            </form>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Done</th><th>Question</th><th>Platform</th><th>Difficulty</th><th>Status</th><th>Action</th></tr></thead>
+                    <tbody>
+                    {% for q in questions %}
+                    <tr>
+                        <td>
+                            <form action="{% url 'toggle_question' q.id %}" method="POST">
+                                {% csrf_token %}
+                                <button class="check {% if q.solved %}checked{% endif %}" title="Toggle solved">
+                                    {% if q.solved %}✓{% else %}○{% endif %}
+                                </button>
+                            </form>
+                        </td>
+                        <td class="{% if q.solved %}done{% endif %}">{{ q.title }}</td>
+                        <td>{{ q.platform }}</td>
+                        <td>{{ q.difficulty }}</td>
+                        <td>{% if q.solved %}<span class="pill green">Solved</span>{% else %}<span class="pill">Pending</span>{% endif %}</td>
+                        <td>
+                            <form action="{% url 'delete_question' q.id %}" method="POST">
+                                {% csrf_token %}
+                                <button class="delete" title="Delete question">×</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6">No questions added yet.</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="study" class="card">
+            <h2>📅 Daily Study Log</h2>
+            <form action="{% url 'add_log' %}" method="POST" class="form-row">
+                {% csrf_token %}
+                <input type="date" name="date" required>
+                <input type="number" name="study_hours" placeholder="Hours" min="0" max="24" step="0.5" required>
+                <input type="number" name="dsa_solved" placeholder="DSA solved" min="0" required>
+                <input name="notes" placeholder="Today's learning...">
+                <button>Save Log</button>
+            </form>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Date</th><th>Hours</th><th>DSA solved</th><th>Notes</th></tr></thead>
+                    <tbody>
+                    {% for log in logs %}
+                    <tr><td>{{ log.date }}</td><td>{{ log.study_hours }}</td><td>{{ log.dsa_solved }}</td><td>{{ log.notes }}</td></tr>
+                    {% empty %}
+                    <tr><td colspan="4">No study logs yet.</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="projects" class="card">
+            <h2>📁 My Projects</h2>
+            <form action="{% url 'add_project' %}" method="POST" class="form-row">
+                {% csrf_token %}
+                <input name="title" placeholder="Project name" required>
+                <input name="technology" placeholder="Technologies">
+                <input name="github_url" type="url" placeholder="GitHub URL">
+                <select name="status">
+                    <option>In Progress</option><option>Completed</option><option>Planned</option>
+                </select>
+                <button>Add Project</button>
+            </form>
+            <div class="stats">
+                {% for project in projects %}
+                <div class="card inner">
+                    <h3>{{ project.title }}</h3>
+                    <p class="muted">{{ project.technology }}</p>
+                    <span class="pill">{{ project.status }}</span>
+                    {% if project.github_url %}
+                    <p><a href="{{ project.github_url }}" target="_blank" rel="noopener">GitHub ↗</a></p>
+                    {% endif %}
+                </div>
+                {% empty %}
+                <p class="muted">Add your first project.</p>
+                {% endfor %}
+            </div>
+        </section>
+
+        <section id="applications" class="card">
+            <h2>🎯 Company Application Tracker</h2>
+            <form action="{% url 'add_application' %}" method="POST" class="form-row">
+                {% csrf_token %}
+                <input name="company" placeholder="Company name" required>
+                <input name="role" placeholder="Role e.g. SDE">
+                <select name="status">
+                    <option>Interested</option><option>Applied</option><option>OA</option>
+                    <option>Interview</option><option>Selected</option><option>Rejected</option>
+                </select>
+                <button>Add</button>
+            </form>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Company</th><th>Role</th><th>Status</th><th>Date</th></tr></thead>
+                    <tbody>
+                    {% for app in applications %}
+                    <tr><td>{{ app.company }}</td><td>{{ app.role }}</td><td>{{ app.status }}</td><td>{{ app.applied_on }}</td></tr>
+                    {% empty %}
+                    <tr><td colspan="4">No applications tracked yet.</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <footer>PlacementPath • Built by {{ profile.name }} 🚀</footer>
+    </main>
+</div>
+
+<script>
+    function toggleEditProfile() {
+        const form = document.getElementById('edit-profile-form');
+        form.style.display = form.style.display === 'none' ? 'block' : 'none';
+    }
+
+    const ctx = document.getElementById('weeklyChart');
+    if (ctx) {
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: {{ chart_labels|safe }},
+                datasets: [
+                    {
+                        label: 'Study Hours',
+                        data: {{ chart_hours|safe }},
+                        backgroundColor: '#7c83ff',
+                        borderRadius: 6
+                    },
+                    {
+                        label: 'DSA Solved',
+                        data: {{ chart_dsa|safe }},
+                        backgroundColor: '#36d69a',
+                        borderRadius: 6
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { ticks: { color: '#8998b3' }, grid: { color: '#26334b' } },
+                    y: { beginAtZero: true, ticks: { color: '#8998b3' }, grid: { color: '#26334b' } }
+                },
+                plugins: {
+                    legend: { labels: { color: '#edf2ff' } }
+                }
+            }
+        });
+    }
+</script>
+<script src="{% static 'tracker/app.js' %}"></script>
+</body>
+</html>
